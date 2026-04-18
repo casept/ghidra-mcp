@@ -1455,12 +1455,10 @@ public class DataTypeService {
                         struct.replace(targetComponent.getOrdinal(), newDataType, newDataType.getLength());
                     }
 
-                    // If new name is specified, auto-fix Hungarian prefix and change the field name
+                    // If new name is specified, use it as-is
                     if (newName != null && !newName.isEmpty()) {
                         targetComponent = struct.getComponent(targetComponent.getOrdinal()); // Refresh component
-                        String fieldTypeName = targetComponent.getDataType().getName();
-                        String fixedName = NamingConventions.autoFixFieldPrefix(newName, fieldTypeName);
-                        targetComponent.setFieldName(fixedName);
+                        targetComponent.setFieldName(newName);
                     }
 
                     result.append("Successfully modified field '").append(fieldName).append("' in structure '").append(structName).append("'");
@@ -1500,9 +1498,6 @@ public class DataTypeService {
         if (structName == null || structName.isEmpty()) return Response.text("Structure name is required");
         if (fieldName == null || fieldName.isEmpty()) return Response.text("Field name is required");
         if (fieldType == null || fieldType.isEmpty()) return Response.text("Field type is required");
-
-        // Auto-fix Hungarian prefix
-        fieldName = NamingConventions.autoFixFieldPrefix(fieldName, fieldType);
 
         AtomicBoolean success = new AtomicBoolean(false);
         StringBuilder result = new StringBuilder();
@@ -2785,11 +2780,6 @@ public class DataTypeService {
 
         } catch (Exception e) {
             Msg.error(this, "Error parsing JSON object: " + e.getMessage());
-        }
-
-        // Auto-fix Hungarian prefix on field name
-        if (name != null && type != null) {
-            name = NamingConventions.autoFixFieldPrefix(name, type);
         }
 
         return new FieldDefinition(name, type, offset);
