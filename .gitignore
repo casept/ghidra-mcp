@@ -6,12 +6,18 @@
 /target/
 # Gradle build cache
 /.gradle/
+# Project-local Gradle state (created by ghidra-mcp-setup.sh)
+/.gradle-home/
+# Throwaway Gradle distribution used by build-install.sh on first run only
+/.gradle-bootstrap/
 *.jar
 !/gradle/wrapper/gradle-wrapper.jar
 *.zip
 *.war
 *.ear
 *.nar
+# Gradle wrapper JAR is tracked despite the global *.jar rule above
+!/gradle/wrapper/gradle-wrapper.jar
 
 # Compiled class files
 *.class
