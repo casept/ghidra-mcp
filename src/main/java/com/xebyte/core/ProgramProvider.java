@@ -79,14 +79,17 @@ public interface ProgramProvider {
     /**
      * Get a program by name, falling back to current program if name is null or empty.
      *
+     * <p>When a non-empty name is provided but no matching program is found,
+     * returns {@code null} so callers (e.g. {@link ServiceUtils#getProgramOrError})
+     * can report an explicit error instead of silently operating on the wrong program.
+     *
      * @param name The program name (may be null)
-     * @return The resolved program
+     * @return The resolved program, or null if a name was given but not found
      */
     default Program resolveProgram(String name) {
         if (name == null || name.isEmpty()) {
             return getCurrentProgram();
         }
-        Program program = getProgram(name);
-        return program != null ? program : getCurrentProgram();
+        return getProgram(name);
     }
 }
