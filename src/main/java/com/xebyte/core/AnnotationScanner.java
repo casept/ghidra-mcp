@@ -219,7 +219,18 @@ public class AnnotationScanner {
     private static Object resolveParam(ParamBinding binding, Map<String, String> query,
             Map<String, Object> body) {
         if (binding.param.source() == ParamSource.QUERY) {
-            return resolveQueryParam(binding, query);
+            Object result = resolveQueryParam(binding, query);
+            // Fall back to JSON body for QUERY-sourced params on POST requests.
+            // The Python bridge (and other MCP clients) send all params in the
+            // JSON body; only dry_run is special-cased to query params.  Without
+            // this fallback, params like "program" are silently lost on POST
+            // endpoints because the bridge does not separate QUERY vs BODY params.
+            if (result == null && body != null && body.containsKey(binding.param.value())) {
+                Object raw = body.get(binding.param.value());
+                if (raw instanceof String s) return s;
+                if (raw != null) return raw.toString();
+            }
+            return result;
         } else {
             return resolveBodyParam(binding, body);
         }
