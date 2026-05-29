@@ -75,10 +75,10 @@ public final class ConventionConfig {
         this.plateComments = plateComments != null ? plateComments : PlateCommentRules.defaults();
     }
 
-    /** Defaults match the v5.0–v5.11 hardcoded behavior. */
+    /* Upstream default was Mode.ENFORCE (v5.0–v5.11 hardcoded behavior). */
     public static ConventionConfig defaults() {
         return new ConventionConfig(
-                Mode.ENFORCE,
+                Mode.OFF,
                 FunctionNamingRules.defaults(),
                 HungarianRules.defaults(),
                 GlobalNamingRules.defaults(),
