@@ -1164,7 +1164,7 @@ public class ProgramScriptService {
                     resultMsg.append("Time: ").append(new Date().toString()).append("\n\n");
 
                     // Resolve script file - search standard locations
-                    File ghidraScriptsDir = new File(System.getProperty("user.home"), "ghidra_scripts");
+                    File ghidraScriptsDir = SecurityConfig.getInstance().getScriptsDir();
                     String[] possiblePaths = {
                         scriptPath,  // Absolute or relative path as-is
                         new File(ghidraScriptsDir, scriptPath).getPath(),
@@ -1340,8 +1340,8 @@ public class ProgramScriptService {
             className = m.group(1);
         }
 
-        // Write to ~/ghidra_scripts/ so OSGi classloader can find the source bundle
-        File scriptsDir = new File(System.getProperty("user.home"), "ghidra_scripts");
+        // Write to the configured scripts dir so the OSGi classloader can find the source bundle
+        File scriptsDir = SecurityConfig.getInstance().getScriptsDir();
         scriptsDir.mkdirs();
 
         // Pre-cleanup: remove stale McpInline_*.java files so Ghidra's per-directory
@@ -1903,7 +1903,7 @@ public class ProgramScriptService {
             boolean hasExtension = scriptName.contains(".");
 
             String[] searchDirs = {
-                System.getProperty("user.home") + "/ghidra_scripts",
+                SecurityConfig.getInstance().getScriptsDir().getPath(),
                 System.getProperty("user.dir") + "/ghidra_scripts",
                 "./ghidra_scripts"
             };
