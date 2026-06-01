@@ -38,6 +38,13 @@ import java.nio.file.Paths;
  *       analogous containment guard is project-folder scope
  *       ({@link #isPathInProjectScope(String)}), which is enforced only when a project
  *       scope is configured.</li>
+ *   <li>{@code GHIDRA_MCP_SCRIPTS_DIR} — if set, overrides the directory
+ *       used by {@code /run_script} and {@code /run_script_inline} for
+ *       resolving and writing temporary script files. Defaults to
+ *       {@code ~/ghidra_scripts}. Set this to an already-active Ghidra
+ *       extension scripts directory (e.g.
+ *       {@code ~/.config/ghidra/ghidra_<ver>_PUBLIC/Extensions/MyExt/ghidra_scripts})
+ *       to avoid the one-time Script Manager activation step.
  * </ul>
  *
  * Also enforces a bind-hardening rule at headless startup:
@@ -50,6 +57,7 @@ public final class SecurityConfig {
 
     private final byte[] tokenBytes;     // null if auth disabled
     private final boolean scriptsAllowed;
+    private final File scriptsDir;       // default ~/ghidra_scripts
     private final String fileRoot;       // null if disabled
     private final Path fileRootCanonical;
     private final String projectFolderScope; // null = no enforcement (default)
@@ -65,6 +73,13 @@ public final class SecurityConfig {
                 && (rawScripts.equalsIgnoreCase("1")
                     || rawScripts.equalsIgnoreCase("true")
                     || rawScripts.equalsIgnoreCase("yes"));
+
+        String rawScriptsDir = System.getenv("GHIDRA_MCP_SCRIPTS_DIR");
+        if (rawScriptsDir != null && !rawScriptsDir.isEmpty()) {
+            this.scriptsDir = new File(rawScriptsDir);
+        } else {
+            this.scriptsDir = new File(System.getProperty("user.home"), "ghidra_scripts");
+        }
 
         String rawRoot = System.getenv("GHIDRA_MCP_FILE_ROOT");
         if (rawRoot != null && !rawRoot.isEmpty()) {
@@ -134,6 +149,15 @@ public final class SecurityConfig {
     /** True when {@code GHIDRA_MCP_ALLOW_SCRIPTS} opts in. */
     public boolean areScriptsAllowed() {
         return scriptsAllowed;
+    }
+
+    /**
+     * Directory used for resolving and writing temporary script files.
+     * Defaults to {@code ~/ghidra_scripts}; overridden by
+     * {@code GHIDRA_MCP_SCRIPTS_DIR}.
+     */
+    public File getScriptsDir() {
+        return scriptsDir;
     }
 
     /** True when {@code GHIDRA_MCP_PROJECT_FOLDER} is set (any value). */
