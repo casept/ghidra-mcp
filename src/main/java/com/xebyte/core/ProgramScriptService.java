@@ -1196,12 +1196,18 @@ public class ProgramScriptService {
 
                     // Issue #2 fix: If the script is NOT already in ~/ghidra_scripts/,
                     // copy it there so Ghidra's OSGi class loader can find the source bundle.
+                    // Use both canonical and logical paths: logical path handles symlinked
+                    // subdirs (e.g. ~/ghidra_scripts/my_scripts -> /some/repo/ghidra_scripts)
+                    // where canonical resolves through the symlink and looks "outside".
                     File scriptFileForExecution = resolvedFile;
                     try {
                         ghidraScriptsDir.mkdirs();
                         String canonicalScriptsDir = ghidraScriptsDir.getCanonicalPath();
                         String canonicalResolved = resolvedFile.getCanonicalPath();
-                        if (!canonicalResolved.startsWith(canonicalScriptsDir + File.separator)) {
+                        String logicalScriptsDir = ghidraScriptsDir.getAbsolutePath();
+                        String logicalResolved = resolvedFile.getAbsolutePath();
+                        if (!canonicalResolved.startsWith(canonicalScriptsDir + File.separator) &&
+                            !logicalResolved.startsWith(logicalScriptsDir + File.separator)) {
                             // Copy to ~/ghidra_scripts/
                             File dest = new File(ghidraScriptsDir, resolvedFile.getName());
                             java.nio.file.Files.copy(resolvedFile.toPath(), dest.toPath(),
