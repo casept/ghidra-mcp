@@ -118,7 +118,7 @@ For leaf functions with ambiguous semantics (hash algorithms, CRC/checksum varia
 
 Skip for non-leaf functions, anything with heap/syscall side effects, or anything that already scores above `good_enough`.
 
-**Note**: As of v5.4.1, `/run_script_inline` and `/run_ghidra_script` are gated behind `GHIDRA_MCP_ALLOW_SCRIPTS=1` and return 403 by default — one more reason to stick to native MCP tools rather than ad-hoc script injection.
+**Note**: As of v5.4.1, `/run_script_inline` and `/run_ghidra_script` are gated (off by default) and return 403 unless enabled via `GHIDRA_MCP_ALLOW_SCRIPTS=1` or the "Allow Script Execution" Tool Option — one more reason to stick to native MCP tools rather than ad-hoc script injection.
 
 ## Output
 

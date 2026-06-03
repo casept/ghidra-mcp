@@ -4,6 +4,13 @@ Complete version history for the Ghidra MCP Server project.
 
 ---
 
+## [Unreleased]
+
+### Added
+- "Allow Script Execution" GUI Tool Option (Edit > Tool Options > GhidraMCP HTTP Server)
+
+---
+
 ## v5.14.1 - 2026-06-18 (patch: full overlay address-space support)
 
 Patch release.

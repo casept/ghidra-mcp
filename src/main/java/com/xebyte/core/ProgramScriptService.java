@@ -1421,14 +1421,15 @@ public class ProgramScriptService {
         return Response.text(resultMsg.toString());
     }
 
-    @McpTool(path = "/run_script_inline", method = "POST", description = "Execute inline Ghidra script code. Pass the full Java source as the 'code' body parameter. Gated by GHIDRA_MCP_ALLOW_SCRIPTS=1 (v5.4.1+).", category = "program")
+    @McpTool(path = "/run_script_inline", method = "POST", description = "Execute inline Ghidra script code. Pass the full Java source as the 'code' body parameter. Gated by GHIDRA_MCP_ALLOW_SCRIPTS=1 or the 'Allow Script Execution' Tool Option (v5.4.1+).", category = "program")
     public Response runScriptInline(
             @Param(value = "code", source = ParamSource.BODY) String code,
             @Param(value = "args", source = ParamSource.BODY, defaultValue = "") String args,
             @Param(value = "program", description = "Target program name", defaultValue = "") String programName) {
         if (!SecurityConfig.getInstance().areScriptsAllowed()) {
-            return Response.err("Script execution disabled. Set GHIDRA_MCP_ALLOW_SCRIPTS=1 "
-                + "(and GHIDRA_MCP_AUTH_TOKEN if exposing beyond loopback) to enable. "
+            return Response.err("Script execution disabled. Enable it via the 'Allow Script Execution' "
+                + "Tool Option (Edit > Tool Options > GhidraMCP HTTP Server) or set GHIDRA_MCP_ALLOW_SCRIPTS=1 "
+                + "(and GHIDRA_MCP_AUTH_TOKEN if exposing beyond loopback). "
                 + "/run_script_inline executes arbitrary Java against the Ghidra process.");
         }
         if (code == null || code.trim().isEmpty()) {
@@ -1976,7 +1977,7 @@ public class ProgramScriptService {
         return runGhidraScriptWithCapture(scriptName, scriptArgs, timeoutSeconds, captureOutput, null);
     }
 
-    @McpTool(path = "/run_ghidra_script", method = "POST", description = "Execute script with output capture and timeout. Gated by GHIDRA_MCP_ALLOW_SCRIPTS=1 (v5.4.1+).", category = "program")
+    @McpTool(path = "/run_ghidra_script", method = "POST", description = "Execute script with output capture and timeout. Gated by GHIDRA_MCP_ALLOW_SCRIPTS=1 or the 'Allow Script Execution' Tool Option (v5.4.1+).", category = "program")
     public Response runGhidraScriptWithCapture(
             @Param(value = "script_name", source = ParamSource.BODY) String scriptName,
             @Param(value = "args", source = ParamSource.BODY, defaultValue = "") String scriptArgs,
@@ -1984,8 +1985,9 @@ public class ProgramScriptService {
             @Param(value = "capture_output", source = ParamSource.BODY, defaultValue = "true") boolean captureOutput,
             @Param(value = "program", description = "Target program name", defaultValue = "") String programName) {
         if (!SecurityConfig.getInstance().areScriptsAllowed()) {
-            return Response.err("Script execution disabled. Set GHIDRA_MCP_ALLOW_SCRIPTS=1 "
-                + "(and GHIDRA_MCP_AUTH_TOKEN if exposing beyond loopback) to enable. "
+            return Response.err("Script execution disabled. Enable it via the 'Allow Script Execution' "
+                + "Tool Option (Edit > Tool Options > GhidraMCP HTTP Server) or set GHIDRA_MCP_ALLOW_SCRIPTS=1 "
+                + "(and GHIDRA_MCP_AUTH_TOKEN if exposing beyond loopback). "
                 + "/run_ghidra_script executes any script resolvable via the Ghidra script path.");
         }
         if (scriptName == null || scriptName.isEmpty()) {

@@ -25,7 +25,12 @@ import java.nio.file.Paths;
  *       code against the Ghidra process and are off by default in v5.4.1+.
  *       Without an explicit opt-in they return 403. Scripts endpoints were
  *       always-on before v5.4.1; the flip to default-off is a deliberate
- *       breaking change in the security release.
+ *       breaking change in the security release. In the GUI plugin the same
+ *       opt-in is also exposed as the "Allow Script Execution" Tool Option;
+ *       {@link #setScriptsAllowedByOption(boolean)} pushes that checkbox value
+ *       here and it is OR-combined with the env var (either one enables
+ *       scripts). The checkbox is GUI-only — headless deployments use the
+ *       env var exclusively.
  *   <li>{@code GHIDRA_MCP_FILE_ROOT} — if set to a directory path, endpoints that take a
  *       real <em>filesystem</em> path canonicalize the input (via
  *       {@link #resolveWithinFileRoot(String)}) and require that the resolved path fall
@@ -56,7 +61,12 @@ public final class SecurityConfig {
     private static final SecurityConfig INSTANCE = new SecurityConfig();
 
     private final byte[] tokenBytes;     // null if auth disabled
-    private final boolean scriptsAllowed;
+    private final boolean scriptsAllowedByEnv;
+    // GUI "Allow Script Execution" Tool Option, pushed via
+    // setScriptsAllowedByOption(). OR-combined with the env var. volatile
+    // because the plugin sets it from the Swing thread while HTTP worker
+    // threads read it in areScriptsAllowed().
+    private volatile boolean scriptsAllowedByOption = false;
     private final File scriptsDir;       // default ~/ghidra_scripts
     private final String fileRoot;       // null if disabled
     private final Path fileRootCanonical;
@@ -69,7 +79,7 @@ public final class SecurityConfig {
                 : null;
 
         String rawScripts = System.getenv("GHIDRA_MCP_ALLOW_SCRIPTS");
-        this.scriptsAllowed = rawScripts != null
+        this.scriptsAllowedByEnv = rawScripts != null
                 && (rawScripts.equalsIgnoreCase("1")
                     || rawScripts.equalsIgnoreCase("true")
                     || rawScripts.equalsIgnoreCase("yes"));
@@ -146,9 +156,27 @@ public final class SecurityConfig {
         return constantTimeEquals(tokenBytes, presented);
     }
 
-    /** True when {@code GHIDRA_MCP_ALLOW_SCRIPTS} opts in. */
+    /**
+     * True when script-execution endpoints are permitted. Enabled by either
+     * the {@code GHIDRA_MCP_ALLOW_SCRIPTS} env var (read once at startup) or
+     * the GUI "Allow Script Execution" Tool Option (pushed via
+     * {@link #setScriptsAllowedByOption(boolean)}). Either source on its own
+     * is sufficient.
+     */
     public boolean areScriptsAllowed() {
-        return scriptsAllowed;
+        return scriptsAllowedByEnv || scriptsAllowedByOption;
+    }
+
+    /**
+     * Set the script-execution opt-in coming from the GUI "Allow Script
+     * Execution" Tool Option. OR-combined with the {@code GHIDRA_MCP_ALLOW_SCRIPTS}
+     * env var in {@link #areScriptsAllowed()}, so this can only widen access
+     * when the env var is unset, and toggling it off never overrides an env
+     * opt-in. Called by the plugin on server start/restart; no-op in headless
+     * deployments (which have no Tool Options).
+     */
+    public void setScriptsAllowedByOption(boolean allowed) {
+        this.scriptsAllowedByOption = allowed;
     }
 
     /**
