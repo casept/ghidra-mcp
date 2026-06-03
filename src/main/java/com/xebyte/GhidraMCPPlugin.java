@@ -207,6 +207,8 @@ public class GhidraMCPPlugin extends Plugin implements ApplicationLevelPlugin {
     private static final String TCP_ENABLED_OPTION = "Enable TCP Transport";
     private static final String STRICT_NAMING_ENFORCEMENT_OPTION = "Strict Naming Enforcement";
     private static final String LEGACY_STRICT_FUNCTION_NAMES_OPTION = "Strict Function Name Enforcement";
+    private static final String ALLOW_SCRIPTS_OPTION = "Allow Script Execution";
+    private static final boolean DEFAULT_ALLOW_SCRIPTS = false;
     // Both transports default ON. UDS gives per-PID socket files so multi-
     // instance setups don't race for the same TCP port (issue #175 primary
     // fix). TCP stays on by default because many users have HTTP-only
@@ -334,8 +336,14 @@ public class GhidraMCPPlugin extends Plugin implements ApplicationLevelPlugin {
             "Hungarian prefix auto-fixes. Disable when your naming convention " +
             "does not match the built-in heuristic; function/global convention warnings are still returned. " +
             "Takes effect when the MCP server starts or restarts.");
+        options.registerOption(ALLOW_SCRIPTS_OPTION, DEFAULT_ALLOW_SCRIPTS, null,
+            "Allow /run_script_inline and /run_ghidra_script, which execute arbitrary Java " +
+            "against the Ghidra process. Off by default. Equivalent to the GHIDRA_MCP_ALLOW_SCRIPTS " +
+            "env var (either one enables scripts). Leave disabled unless you trust every client " +
+            "that can reach the server. Takes effect when the MCP server starts or restarts.");
         migrateLegacyNamingOption(options);
         refreshNamingPolicyFromOptions();
+        refreshScriptPolicyFromOptions();
 
         boolean udsEnabled = options.getBoolean(UDS_ENABLED_OPTION, DEFAULT_UDS_ENABLED);
         boolean tcpEnabled = options.getBoolean(TCP_ENABLED_OPTION, DEFAULT_TCP_ENABLED);
@@ -424,6 +432,13 @@ public class GhidraMCPPlugin extends Plugin implements ApplicationLevelPlugin {
         Msg.info(this, "GhidraMCP strict naming enforcement: " + strict);
     }
 
+    private void refreshScriptPolicyFromOptions() {
+        Options options = tool.getOptions(OPTION_CATEGORY_NAME);
+        boolean allow = options.getBoolean(ALLOW_SCRIPTS_OPTION, DEFAULT_ALLOW_SCRIPTS);
+        com.xebyte.core.SecurityConfig.getInstance().setScriptsAllowedByOption(allow);
+        Msg.info(this, "GhidraMCP script execution allowed (Tool Option): " + allow);
+    }
+
     /** Best-effort resolution of the active Ghidra project directory.
      * Returns null if no project is currently open. */
     private java.nio.file.Path resolveProjectRootDir() {
@@ -486,6 +501,7 @@ public class GhidraMCPPlugin extends Plugin implements ApplicationLevelPlugin {
             public void actionPerformed(ActionContext context) {
                 Options opts = tool.getOptions(OPTION_CATEGORY_NAME);
                 refreshNamingPolicyFromOptions();
+                refreshScriptPolicyFromOptions();
                 boolean uds = opts.getBoolean(UDS_ENABLED_OPTION, DEFAULT_UDS_ENABLED);
                 boolean tcp = opts.getBoolean(TCP_ENABLED_OPTION, DEFAULT_TCP_ENABLED);
                 StringBuilder started = new StringBuilder();
@@ -554,6 +570,7 @@ public class GhidraMCPPlugin extends Plugin implements ApplicationLevelPlugin {
                     "UDS: " + udsStatus + "\n" +
                     "TCP: " + tcpStatus + "\n" +
                     "Strict naming enforcement: " + NamingPolicy.getInstance().isStrictNamingEnforcement() + "\n" +
+                    "Script execution allowed: " + com.xebyte.core.SecurityConfig.getInstance().areScriptsAllowed() + "\n" +
                     "Version: " + VersionInfo.getFullVersion() + "\n" +
                     "Endpoints: " + VersionInfo.getEndpointCount();
                 Msg.showInfo(getClass(), null, "GhidraMCP", message);
@@ -573,6 +590,7 @@ public class GhidraMCPPlugin extends Plugin implements ApplicationLevelPlugin {
         // Read the configured port
         Options options = tool.getOptions(OPTION_CATEGORY_NAME);
         refreshNamingPolicyFromOptions();
+        refreshScriptPolicyFromOptions();
         int port = options.getInt(PORT_OPTION_NAME, DEFAULT_PORT);
 
         // Stop existing server if running (e.g., if plugin is reloaded)

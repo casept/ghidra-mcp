@@ -4,6 +4,23 @@ Complete version history for the Ghidra MCP Server project.
 
 ---
 
+## Unreleased
+
+### Added
+
+- **"Allow Script Execution" Tool Option.** `/run_script_inline` and
+  `/run_ghidra_script` can now be enabled from the GUI via **Edit > Tool
+  Options > GhidraMCP HTTP Server > Allow Script Execution**, in addition to
+  the existing `GHIDRA_MCP_ALLOW_SCRIPTS` env var. The two sources are
+  OR-combined (`SecurityConfig.areScriptsAllowed()`): either one enables the
+  endpoints, and toggling the checkbox off never overrides an env-var opt-in.
+  Off by default; read on server start/restart, mirroring the Strict Naming
+  Enforcement option. The Server Status dialog now reports the effective
+  state. Headless deployments are unaffected (no Tool Options) and continue
+  to use the env var exclusively.
+
+---
+
 ## v5.12.0 - 2026-05-23 (community-driven tools: /get_current_selection + GUI /open_project)
 
 Minor release. Two new endpoints filed/scoped by community feedback
