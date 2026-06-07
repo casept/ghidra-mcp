@@ -223,7 +223,6 @@ Icon
 .env
 .env.*
 !.env.template
-.envrc
 
 # Configuration overrides
 config/local.properties
