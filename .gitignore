@@ -4,8 +4,9 @@
 
 # Maven target directory and build artifacts
 /target/
-# Gradle build cache
+# Gradle build cache and project-local state
 /.gradle/
+/.gradle-home/
 *.jar
 !/gradle/wrapper/gradle-wrapper.jar
 *.zip
@@ -217,7 +218,6 @@ Icon
 .env
 .env.*
 !.env.template
-.envrc
 
 # Configuration overrides
 config/local.properties
@@ -271,7 +271,6 @@ replay_pid*
 # Ghidra project files
 *.gpr
 *.rep/
-*.lock
 
 # Ghidra analysis files
 *.gzf
@@ -626,3 +625,5 @@ fun-doc/audit/queue.jsonl.*-archived
 # fun-doc historical analysis snapshots (large per-project state files)
 fun-doc/state_*.json
 fun-doc/benchmark/bh/source/
+
+.direnv/
