@@ -303,6 +303,33 @@ def validate_server_url(url: str) -> bool:
         return False
 
 
+def parse_ghidra_address(addr: str) -> tuple[str, str]:
+    """Parse a --ghidra-address value into (mode, value).
+
+    Accepts:
+      - unix:///abs/path/to/socket  -> ("uds", "/abs/path/to/socket")
+      - tcp://host:port             -> ("tcp", "http://host:port")
+      - http://host:port            -> ("tcp", "http://host:port")
+      - https://host:port           -> ("tcp", "https://host:port")
+    """
+    if addr.startswith("unix://"):
+        path = addr[len("unix://") :]
+        if not path:
+            raise ValueError("unix:// address requires a socket path")
+        return "uds", path
+    if addr.startswith("tcp://"):
+        rest = addr[len("tcp://") :]
+        if not rest:
+            raise ValueError("tcp:// address requires host:port")
+        return "tcp", "http://" + rest
+    if addr.startswith(("http://", "https://")):
+        return "tcp", addr
+    raise ValueError(
+        f"Unrecognized --ghidra-address scheme: {addr!r}. "
+        "Use unix:///path/to/socket or tcp://host:port."
+    )
+
+
 def validate_hex_address(address: str) -> bool:
     """Validate that an address string looks like a valid hex address or segment:offset."""
     if not address:
@@ -1736,9 +1763,42 @@ async def import_file(
 # ==========================================================================
 
 
-def _auto_connect():
-    """Try to auto-connect to a single running instance on startup."""
+def _auto_connect(address_override: str | None = None):
+    """Try to auto-connect to a single running instance on startup.
+
+    If ``address_override`` is set (from --ghidra-address), skip discovery
+    and connect directly to the specified UDS path or TCP URL.
+    """
     global _active_socket, _active_tcp, _transport_mode, _connected_project
+
+    if address_override:
+        mode, value = parse_ghidra_address(address_override)
+        if mode == "uds":
+            _active_socket = value
+            _active_tcp = None
+            _transport_mode = "uds"
+            try:
+                count = _fetch_and_register_schema()
+                logger.info(
+                    f"Connected via UDS to {value}, registered {count} tools"
+                )
+            except Exception as e:
+                logger.error(f"Failed to connect via UDS to {value}: {e}")
+                _active_socket = None
+                _transport_mode = "none"
+            return
+        # tcp
+        _active_tcp = value
+        _active_socket = None
+        _transport_mode = "tcp"
+        try:
+            count = _fetch_and_register_schema()
+            logger.info(f"Connected via TCP to {value}, registered {count} tools")
+        except Exception as e:
+            logger.error(f"Failed to connect via TCP to {value}: {e}")
+            _active_tcp = None
+            _transport_mode = "none"
+        return
 
     # Try UDS first
     instances = discover_instances()
@@ -2229,7 +2289,22 @@ def main():
         help="Comma-separated list of default tool groups to load on connect "
         "(default: listing,function,program)",
     )
+    parser.add_argument(
+        "--ghidra-address",
+        type=str,
+        default=None,
+        help="Explicit Ghidra plugin address (skips UDS auto-discovery). "
+        "Forms: unix:///path/to/socket, tcp://host:port, http://host:port. "
+        "If omitted, the bridge auto-discovers a UDS socket and falls back "
+        "to GHIDRA_MCP_URL (default http://127.0.0.1:8089).",
+    )
     args = parser.parse_args()
+
+    if args.ghidra_address:
+        try:
+            parse_ghidra_address(args.ghidra_address)
+        except ValueError as e:
+            parser.error(str(e))
 
     _lazy_mode = args.lazy
     if args.default_groups is not None:
@@ -2241,7 +2316,7 @@ def main():
         logger.info(
             "Loading all tool groups on startup (clients that don't support tools/list_changed need this)"
         )
-    _auto_connect()
+    _auto_connect(args.ghidra_address)
 
     mcp.settings.log_level = "INFO"
     mcp.settings.host = args.mcp_host
