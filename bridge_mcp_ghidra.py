@@ -68,7 +68,12 @@ ENDPOINT_TIMEOUTS = {
     "default": 30,
 }
 
-DEFAULT_TCP_URL = "http://127.0.0.1:8089"
+# Host for all TCP connections to Ghidra.  Override via GHIDRA_MCP_HOST when
+# Ghidra is not on localhost (e.g. WSL2 → Windows via netsh portproxy).
+# bridge_mcp_ghidra.sh auto-sets this to the WSL2 default gateway.
+TCP_HOST: str = os.getenv("GHIDRA_MCP_HOST", "127.0.0.1")
+
+DEFAULT_TCP_URL = f"http://{TCP_HOST}:8089"
 DEFAULT_TCP_PORT = 8089
 # Bridge-side TCP port scan range. Mirrors the plugin's
 # TCP_PORT_FALLBACK_RANGE so a TCP-only multi-instance setup (e.g. Windows
@@ -305,7 +310,11 @@ def validate_server_url(url: str) -> bool:
     """Validate that the server URL is safe to use"""
     try:
         parsed = urlparse(url)
-        return parsed.hostname in ("127.0.0.1", "localhost", "::1")
+        allowed = {"127.0.0.1", "localhost", "::1"}
+        # Also allow an explicitly configured remote host (e.g. WSL2 → Windows).
+        if TCP_HOST != "127.0.0.1":
+            allowed.add(TCP_HOST)
+        return parsed.hostname in allowed
     except Exception:
         return False
 
@@ -594,9 +603,9 @@ def _scan_tcp_for_project(project: str, start_port: int = DEFAULT_TCP_PORT,
     project_lower = project.lower()
     substring_url: str | None = None
     for port in range(start_port, start_port + range_size):
-        url = f"http://127.0.0.1:{port}"
+        url = f"http://{TCP_HOST}:{port}"
         try:
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=timeout)
+            conn = http.client.HTTPConnection(TCP_HOST, port, timeout=timeout)
             try:
                 conn.request("GET", "/mcp/instance_info")
                 resp = conn.getresponse()
@@ -631,9 +640,9 @@ def _scan_all_tcp_instances(start_port: int = DEFAULT_TCP_PORT,
     """
     instances = []
     for port in range(start_port, start_port + range_size):
-        url = f"http://127.0.0.1:{port}"
+        url = f"http://{TCP_HOST}:{port}"
         try:
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=timeout)
+            conn = http.client.HTTPConnection(TCP_HOST, port, timeout=timeout)
             try:
                 conn.request("GET", "/mcp/instance_info")
                 resp = conn.getresponse()

@@ -82,6 +82,19 @@ if [[ "${GHIDRA_MCP_NO_INSTALL:-0}" != "1" && -f "$REQUIREMENTS" ]]; then
     fi
 fi
 
+# --- WSL2: auto-detect Windows host IP for cross-host Ghidra connections ----
+# Ghidra on Windows listens on 127.0.0.1 only, which is not reachable from
+# WSL2 directly.  Use netsh portproxy on Windows (ghidra-wsl2-portproxy.bat)
+# to forward the port, then connect via the Windows host gateway IP.
+# GHIDRA_MCP_HOST is picked up by bridge_mcp_ghidra.py for TCP scans.
+if [[ -z "${GHIDRA_MCP_HOST:-}" ]] && grep -qi microsoft /proc/version 2>/dev/null; then
+    _wsl_host_ip=$(ip route show default 2>/dev/null | awk '/default/{print $3; exit}')
+    if [[ -n "$_wsl_host_ip" ]]; then
+        export GHIDRA_MCP_HOST="$_wsl_host_ip"
+        log "WSL2 detected — using Windows host IP: $GHIDRA_MCP_HOST (override with GHIDRA_MCP_HOST=...)"
+    fi
+fi
+
 # --- Hand off to the bridge -------------------------------------------------
 # TCP by default: skip UDS socket scan and use TCP port auto-discovery.
 # Works for single instance (port 8089) and multi-instance (auto-scan 8089+).
