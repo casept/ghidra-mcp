@@ -76,6 +76,13 @@ DEFAULT_TCP_PORT = 8089
 # having to set GHIDRA_MCP_URL per instance. See issue #175 + Copilot review.
 TCP_PORT_SCAN_RANGE = 16
 
+# When True, skip UDS socket discovery entirely and use TCP transport.
+# TCP auto-scan (ports DEFAULT_TCP_PORT .. +TCP_PORT_SCAN_RANGE) handles both
+# single and multi-instance setups without any per-instance configuration.
+# Set to "1" by bridge_mcp_ghidra.sh by default; override with
+# GHIDRA_MCP_DISABLE_UDS=0 to re-enable UDS.
+DISABLE_UDS: bool = os.getenv("GHIDRA_MCP_DISABLE_UDS", "0") == "1"
+
 # Logging
 LOG_LEVEL = os.getenv("GHIDRA_MCP_LOG_LEVEL", "INFO")
 logging.basicConfig(
@@ -498,6 +505,9 @@ def do_request(
 def discover_instances() -> list[dict]:
     """Scan every plausible socket directory and query each live instance.
 
+    Returns an empty list immediately when GHIDRA_MCP_DISABLE_UDS=1 — callers
+    fall through to TCP auto-scan.
+
     Searches *all* candidates returned by `get_socket_dir_candidates()`. This
     handles issue #170: when Claude Desktop spawns the bridge without
     forwarding `$TMPDIR`, the bridge falls back to `/tmp` while the plugin
@@ -506,6 +516,9 @@ def discover_instances() -> list[dict]:
     side knows about `$TMPDIR`. A socket discovered under one candidate dir
     is de-duplicated by absolute path.
     """
+    if DISABLE_UDS:
+        return []
+
     seen_paths: set[str] = set()
     instances: list[dict] = []
 
@@ -607,6 +620,39 @@ def _scan_tcp_for_project(project: str, start_port: int = DEFAULT_TCP_PORT,
     return substring_url
 
 
+def _scan_all_tcp_instances(start_port: int = DEFAULT_TCP_PORT,
+                            range_size: int = TCP_PORT_SCAN_RANGE,
+                            timeout: float = 0.5) -> list[dict]:
+    """Scan the TCP port range and return every responding Ghidra instance.
+
+    Used by list_instances() when GHIDRA_MCP_DISABLE_UDS=1.  Mirrors the port
+    range that _scan_tcp_for_project() searches so the two functions agree on
+    which instances are reachable.
+    """
+    instances = []
+    for port in range(start_port, start_port + range_size):
+        url = f"http://127.0.0.1:{port}"
+        try:
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=timeout)
+            try:
+                conn.request("GET", "/mcp/instance_info")
+                resp = conn.getresponse()
+                if resp.status != 200:
+                    continue
+                body = resp.read().decode("utf-8", errors="replace")
+            finally:
+                conn.close()
+            info = _unwrap_response_data(body)
+            if isinstance(info, dict):
+                info["transport"] = "tcp"
+                info["url"] = url
+                info["discovery"] = "tcp-scan"
+                instances.append(info)
+        except Exception:
+            continue
+    return instances
+
+
 def discover_active_tcp_instance() -> dict | None:
     """Return the active TCP fallback connection as an instance-like record."""
     if _transport_mode != "tcp" or not _active_tcp:
@@ -704,12 +750,29 @@ def _normalize_post_payload(endpoint: str, data: dict) -> dict:
 def _try_reconnect() -> bool:
     """Try to reconnect to the previously connected project after Ghidra restarts.
 
-    Scans for UDS instances matching _connected_project. If found, updates the
-    active socket and re-fetches the schema. Returns True if reconnected.
+    In TCP mode (GHIDRA_MCP_DISABLE_UDS=1): scans the TCP port range for a
+    matching project.  In UDS mode: scans socket directories as before.
+    Returns True if reconnected.
     """
     global _active_socket, _active_tcp, _transport_mode
 
     if not _connected_project:
+        return False
+
+    if DISABLE_UDS:
+        scanned = _scan_tcp_for_project(_connected_project)
+        if scanned:
+            _active_tcp = scanned
+            _active_socket = None
+            _transport_mode = "tcp"
+            try:
+                _fetch_and_register_schema()
+                logger.info(
+                    f"Reconnected to project '{_connected_project}' via TCP {scanned}"
+                )
+                return True
+            except Exception as e:
+                logger.warning(f"TCP reconnect schema fetch failed: {e}")
         return False
 
     instances = discover_instances()
@@ -1293,15 +1356,23 @@ async def _notify_tools_changed(ctx: Context | None) -> None:
 @mcp.tool()
 def list_instances() -> str:
     """
-    List known Ghidra instances from UDS discovery and the active TCP fallback.
+    List known Ghidra instances.
 
-    Returns JSON with each instance's project name, PID, open programs, and
-    socket path or TCP URL. Also shows which instance is currently connected.
+    In TCP mode (default, GHIDRA_MCP_DISABLE_UDS=1): scans ports
+    DEFAULT_TCP_PORT .. +TCP_PORT_SCAN_RANGE for responding instances.
+    In UDS mode: discovers via socket directories.
+    Returns JSON with each instance's project name, transport, URL or socket
+    path, and whether it is currently connected.
     """
-    instances = discover_instances()
+    if DISABLE_UDS:
+        instances = _scan_all_tcp_instances()
+    else:
+        instances = discover_instances()
     tcp_instance = discover_active_tcp_instance()
     if tcp_instance:
-        instances.append(tcp_instance)
+        active_url = tcp_instance.get("url")
+        if not any(i.get("url") == active_url for i in instances):
+            instances.append(tcp_instance)
 
     if not instances:
         return json.dumps(

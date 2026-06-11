@@ -83,6 +83,11 @@ if [[ "${GHIDRA_MCP_NO_INSTALL:-0}" != "1" && -f "$REQUIREMENTS" ]]; then
 fi
 
 # --- Hand off to the bridge -------------------------------------------------
+# TCP by default: skip UDS socket scan and use TCP port auto-discovery.
+# Works for single instance (port 8089) and multi-instance (auto-scan 8089+).
+# Override with GHIDRA_MCP_DISABLE_UDS=0 to re-enable UDS discovery.
+export GHIDRA_MCP_DISABLE_UDS="${GHIDRA_MCP_DISABLE_UDS:-1}"
+
 # `--transport stdio` is already the bridge's default, but pass it explicitly
 # so behaviour is unambiguous regardless of future default changes.
 # `exec` replaces this shell with python so signals propagate cleanly to the
