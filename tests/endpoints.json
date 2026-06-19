@@ -2312,7 +2312,7 @@
         "checkoutId",
         "checkout_id"
       ],
-      "description": "Terminate all checkouts on a single file"
+      "description": "Forcibly terminate another user's checkout on a file"
     },
     {
       "path": "/server/admin/users",
@@ -2336,19 +2336,17 @@
       "method": "GET",
       "category": "server",
       "params": [
+        "repo",
         "path"
       ],
-      "description": "List all checked-out files in a folder, including server-side checkouts"
+      "description": "Get current checkouts (active locks) for a file in a repository"
     },
     {
       "path": "/server/connect",
       "method": "POST",
       "category": "server",
-      "params": [
-        "host",
-        "port"
-      ],
-      "description": "Connect to a Ghidra server"
+      "params": [],
+      "description": "Connect to a shared Ghidra Server (credentials from GHIDRA_SERVER_* env vars)"
     },
     {
       "path": "/server/disconnect",
@@ -2396,33 +2394,9 @@
     {
       "path": "/server/status",
       "method": "GET",
-      "category": "headless",
+      "category": "server",
       "params": [],
-      "description": "Check headless server connection status"
-    },
-    {
-      "path": "/server/version_control/add",
-      "method": "POST",
-      "category": "server",
-      "params": [
-        "repo",
-        "path",
-        "comment",
-        "keepCheckedOut"
-      ],
-      "description": "Add a file to version control"
-    },
-    {
-      "path": "/server/version_control/checkin",
-      "method": "POST",
-      "category": "server",
-      "params": [
-        "repo",
-        "path",
-        "comment",
-        "keepCheckedOut"
-      ],
-      "description": "Check in a version-controlled file"
+      "description": "Check Ghidra Server connection status, credentials config, and last error"
     },
     {
       "path": "/server/version_control/checkout",
@@ -2433,16 +2407,6 @@
         "path"
       ],
       "description": "Check out a version-controlled file"
-    },
-    {
-      "path": "/server/version_control/undo_checkout",
-      "method": "POST",
-      "category": "server",
-      "params": [
-        "repo",
-        "path"
-      ],
-      "description": "Undo a file checkout"
     },
     {
       "path": "/server/version_history",

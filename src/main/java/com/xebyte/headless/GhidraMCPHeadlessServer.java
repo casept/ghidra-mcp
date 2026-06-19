@@ -73,6 +73,7 @@ public class GhidraMCPHeadlessServer implements GhidraLaunchable {
 
     // Ghidra server connection manager
     private GhidraServerManager serverManager;
+    private com.xebyte.core.SharedRepositoryService sharedRepositoryService;
 
     public static void main(String[] args) {
         GhidraMCPHeadlessServer server = new GhidraMCPHeadlessServer();
@@ -103,7 +104,8 @@ public class GhidraMCPHeadlessServer implements GhidraLaunchable {
         // Create server manager for shared Ghidra server support
         serverManager = new GhidraServerManager();
 
-        managementService = new HeadlessManagementService(programProvider, serverManager);
+        managementService = new HeadlessManagementService(programProvider);
+        sharedRepositoryService = new com.xebyte.core.SharedRepositoryService(serverManager);
 
         // Load initial programs if specified
         loadInitialPrograms(args);
@@ -400,7 +402,8 @@ public class GhidraMCPHeadlessServer implements GhidraLaunchable {
             endpointHandler.getXrefCallGraphService(), endpointHandler.getDataTypeService(),
             endpointHandler.getAnalysisService(), endpointHandler.getDocumentationHashService(),
             endpointHandler.getMalwareSecurityService(), endpointHandler.getProgramScriptService(),
-            endpointHandler.getEmulationService(), managementService);
+            endpointHandler.getEmulationService(), managementService,
+            sharedRepositoryService);
 
         for (EndpointDef ep : scanner.getEndpoints()) {
             safeContext(ep.path(), exchange -> {
@@ -481,104 +484,8 @@ public class GhidraMCPHeadlessServer implements GhidraLaunchable {
         });
 
         // --- Server Endpoints ---
-
-        safeContext("/server/connect", exchange -> {
-            sendResponse(exchange, serverManager.connect());
-        });
-
-        // /server/status registered via HeadlessManagementService
-
-        safeContext("/server/repositories", exchange -> {
-            sendResponse(exchange, serverManager.listRepositories());
-        });
-
-        safeContext("/server/disconnect", exchange -> {
-            sendResponse(exchange, serverManager.disconnect());
-        });
-
-        safeContext("/server/repository/files", exchange -> {
-            Map<String, String> params = parseQueryParams(exchange);
-            String repo = params.get("repo");
-            String path = params.get("path");
-            if (path == null) path = "/";
-            sendResponse(exchange, serverManager.listRepositoryFiles(repo, path));
-        });
-
-        safeContext("/server/repository/file", exchange -> {
-            Map<String, String> params = parseQueryParams(exchange);
-            String repo = params.get("repo");
-            String path = params.get("path");
-            sendResponse(exchange, serverManager.getFileInfo(repo, path));
-        });
-
-        safeContext("/server/repository/create", exchange -> {
-            Map<String, String> params = parsePostParams(exchange);
-            sendResponse(exchange, serverManager.createRepository(params.get("name")));
-        });
-
-        // --- Version Control ---
-
-        safeContext("/server/version_control/checkout", exchange -> {
-            Map<String, String> params = parsePostParams(exchange);
-            sendResponse(exchange, serverManager.checkoutFile(params.get("repo"), params.get("path")));
-        });
-
-        safeContext("/server/version_control/checkin", exchange -> {
-            Map<String, String> params = parsePostParams(exchange);
-            boolean keepCheckedOut = parseBooleanOrDefault(params.get("keepCheckedOut"), false);
-            sendResponse(exchange, serverManager.checkinFile(
-                params.get("repo"), params.get("path"), params.get("comment"), keepCheckedOut));
-        });
-
-        safeContext("/server/version_control/undo_checkout", exchange -> {
-            Map<String, String> params = parsePostParams(exchange);
-            sendResponse(exchange, serverManager.undoCheckout(params.get("repo"), params.get("path")));
-        });
-
-        safeContext("/server/version_control/add", exchange -> {
-            Map<String, String> params = parsePostParams(exchange);
-            sendResponse(exchange, serverManager.addToVersionControl(
-                params.get("repo"), params.get("path"), params.get("comment")));
-        });
-
-        safeContext("/server/version_history", exchange -> {
-            Map<String, String> params = parseQueryParams(exchange);
-            sendResponse(exchange, serverManager.getVersionHistory(params.get("repo"), params.get("path")));
-        });
-
-        safeContext("/server/checkouts", exchange -> {
-            Map<String, String> params = parseQueryParams(exchange);
-            sendResponse(exchange, serverManager.getCheckouts(params.get("repo"), params.get("path")));
-        });
-
-        // --- Admin ---
-
-        safeContext("/server/admin/terminate_checkout", exchange -> {
-            Map<String, String> params = parsePostParams(exchange);
-            String checkoutIdParam = params.getOrDefault("checkoutId", params.getOrDefault("checkout_id", "0"));
-            long checkoutId = Long.parseLong(checkoutIdParam);
-            sendResponse(exchange, serverManager.terminateCheckout(
-                params.get("repo"), params.get("path"), checkoutId));
-        });
-
-        safeContext("/server/admin/terminate_all_checkouts", exchange -> {
-            Map<String, String> params = parsePostParams(exchange);
-            String folderPath = params.get("path");
-            if (folderPath == null) folderPath = "/";
-            sendResponse(exchange, serverManager.terminateAllCheckouts(
-                params.get("repo"), folderPath));
-        });
-
-        safeContext("/server/admin/users", exchange -> {
-            sendResponse(exchange, serverManager.listServerUsers());
-        });
-
-        safeContext("/server/admin/set_permissions", exchange -> {
-            Map<String, String> params = parsePostParams(exchange);
-            int accessLevel = parseIntOrDefault(params.get("accessLevel"), 1);
-            sendResponse(exchange, serverManager.setUserPermissions(
-                params.get("repo"), params.get("user"), accessLevel));
-        });
+        // All /server/* endpoints are now registered via SharedRepositoryService
+        // annotations (discovered by AnnotationScanner above).
 
         // --- Analysis Control ---
 

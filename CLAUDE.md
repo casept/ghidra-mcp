@@ -228,6 +228,7 @@ mvn test -Dtest=RegenerateEndpointsJson -Dregenerate=true
 - **`switch_program` matches by name** -- for multi-version work, use the `program` query parameter on individual endpoints instead
 - **Plate comment `\n` creates literal text**, not newlines -- use actual multi-line text
 - **GUI operations from HTTP threads** must use `SwingUtilities.invokeAndWait()`
+- **GUI vs headless `/server/*` routes use different backends** -- GUI plugin registers manual `createContext()` routes that operate on the open project's `DomainFile` objects (real checkin/checkout works). Headless uses `SharedRepositoryService` (annotation-scanned) wrapping `GhidraServerManager` with a standalone `RepositoryAdapter` connection. Never add `SharedRepositoryService` to the GUI plugin's `AnnotationScanner` -- duplicate path registration causes `IllegalArgumentException: cannot add context to list` on startup
 
 ## Benchmark
 

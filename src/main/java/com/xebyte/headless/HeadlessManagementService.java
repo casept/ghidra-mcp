@@ -19,12 +19,9 @@ import java.util.Map;
 public class HeadlessManagementService {
 
     private final HeadlessProgramProvider programProvider;
-    private final GhidraServerManager serverManager;
 
-    public HeadlessManagementService(HeadlessProgramProvider programProvider,
-                                     GhidraServerManager serverManager) {
+    public HeadlessManagementService(HeadlessProgramProvider programProvider) {
         this.programProvider = programProvider;
-        this.serverManager = serverManager;
     }
 
     // ========================================================================
@@ -214,12 +211,4 @@ public class HeadlessManagementService {
         return Response.ok(info);
     }
 
-    // ========================================================================
-    // Server status
-    // ========================================================================
-
-    @McpTool(path = "/server/status", description = "Check headless server connection status", category = "headless")
-    public Response serverStatus() {
-        return Response.text(serverManager.getStatus());
-    }
 }

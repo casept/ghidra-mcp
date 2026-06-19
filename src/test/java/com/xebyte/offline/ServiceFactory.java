@@ -52,7 +52,7 @@ public final class ServiceFactory {
         EmulationService emulationService = new EmulationService(provider, ts);
 
         HeadlessManagementService headlessManagementService =
-            new HeadlessManagementService(new HeadlessProgramProvider(), new GhidraServerManager());
+            new HeadlessManagementService(new HeadlessProgramProvider());
 
         // DebuggerService uses PluginTool only at runtime; scanner only reflects on
         // method signatures, so a null tool is safe for offline scanning.
