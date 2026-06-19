@@ -24,7 +24,7 @@ particular an extension's `ghidra_scripts/` subdir, which is
 ```sh
 # Set in the environment that launches Ghidra (not the Python bridge):
 export GHIDRA_MCP_ALLOW_SCRIPTS=1
-export GHIDRA_MCP_SCRIPTS_DIR="$HOME/.config/ghidra/ghidra_12.1_PUBLIC/Extensions/MyExt/ghidra_scripts"
+export GHIDRA_MCP_SCRIPTS_DIR="$HOME/.config/ghidra/ghidra_12.1.2_PUBLIC/Extensions/MyExt/ghidra_scripts"
 ./ghidraRun
 ```
 
@@ -39,7 +39,7 @@ stdin/stdout). Designed to be the `command:` entry in MCP client configs
 
 Features:
 - Logs only to stderr — stdout is clean for MCP
-- Auto-creates `.venv` on first run; refreshes only when `requirements.txt` changes
+- Auto-creates `.venv` on first run; re-runs `pip install` when core imports fail
 - Falls back to system Python if no `.venv` exists
 - Forwards all CLI flags to `bridge_mcp_ghidra.py` unchanged
 
@@ -62,18 +62,57 @@ Features:
 | `GHIDRA_MCP_NO_INSTALL=1` | — | Skip `pip install` on startup |
 | `GHIDRA_DEBUGGER_URL` | — | Forwarded to bridge (debugger proxy tools) |
 
-### 3. `build-install.sh` — build and install in one step
+### 3. "Allow Script Execution" GUI Tool Option
 
-Thin wrapper over `ghidra-mcp-setup.sh --deploy`. Resolves
-`GHIDRA_INSTALL_DIR` (env → `~/soft/ghidra/ghidra`) and builds with Maven
-(preferred) or Gradle (auto-bootstrapped if neither is installed).
+In the GUI plugin, script execution can be toggled via
+**Edit > Tool Options > GhidraMCP HTTP Server > Allow Script Execution**
+without restarting Ghidra or setting an env var. The checkbox is OR-combined
+with `GHIDRA_MCP_ALLOW_SCRIPTS` — either one enables scripts. Headless
+deployments use the env var exclusively.
+
+### 4. `--ghidra-address` bridge CLI flag
+
+Allows the Python bridge to connect to a specific Ghidra instance instead of
+relying on UDS auto-discovery:
 
 ```sh
-./build-install.sh                    # build + install to local Ghidra
-./build-install.sh --build-tool=gradle
+bridge_mcp_ghidra.py --ghidra-address tcp://host:8089
+bridge_mcp_ghidra.py --ghidra-address unix:///path/to/socket
 ```
 
-### 4. Bug fixes
+Accepted schemes: `unix://`, `tcp://`, `http://`, `https://`.
+
+### 5. Shared Ghidra Server MCP tools (`server` tool group)
+
+17 MCP tools for working with a shared Ghidra Server, exposed via
+`ProjectVersionControlService` (GUI mode, DomainFile-based) and
+`SharedRepositoryService` (headless mode, standalone RepositoryAdapter).
+
+**GUI mode** operates on the open project's DomainFile objects — real
+checkin/checkout/undo works. **Headless mode** uses a standalone server
+connection for read and admin operations.
+
+| Tool | Description |
+|------|-------------|
+| `server_connect` | Connection status (GUI: project-based, no separate connect needed) |
+| `server_disconnect` | Disconnect (GUI: no-op) |
+| `server_status` | Project status, shared flag, server info, file count |
+| `server_repositories` | List all repos on the Ghidra Server |
+| `server_repository_files` | Browse project folder/file tree |
+| `server_repository_file` | File metadata (version, checkout status) |
+| `server_repository_create` | Create new repo (headless only) |
+| `server_version_control_checkout` | Check out a file (DomainFile.checkout in GUI) |
+| `server_version_control_checkin` | Check in a file (DomainFile.checkin in GUI — persists to server) |
+| `server_version_control_undo_checkout` | Undo checkout |
+| `server_version_control_add` | Add file to version control |
+| `server_version_history` | File version history (all versions with user, comment, date) |
+| `server_checkouts` | List checked-out files in a folder |
+| `server_admin_users` | List server users (headless only) |
+| `server_admin_set_permissions` | Set repo access level (headless only) |
+| `server_admin_terminate_checkout` | Force-kill a checkout |
+| `server_admin_terminate_all_checkouts` | Recursive terminate in folder |
+
+### 6. Bug fixes
 
 **`fix: improve param resolution in resolveProgram() and AnnotationScanner`**
 
@@ -95,6 +134,18 @@ Thin wrapper over `ghidra-mcp-setup.sh --deploy`. Resolves
 `NamingConventions.java` enforced Ghidra-style Hungarian prefixes on variable
 names passed to rename tools, rejecting valid names from AI agents. Enforcement
 removed; names are accepted as-is.
+
+## Building
+
+From the parent project (olha-ai-reverse):
+```sh
+make ghidra-plugins   # builds + installs ghidra-mcp and olha-ghidra-scripts
+```
+
+Standalone (requires nix):
+```sh
+nix develop --command ./gradlew buildExtension -PGHIDRA_INSTALL_DIR=/path/to/ghidra
+```
 
 ## Key environment variables
 
