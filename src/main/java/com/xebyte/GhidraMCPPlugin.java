@@ -592,7 +592,21 @@ public class GhidraMCPPlugin extends Plugin implements ApplicationLevelPlugin {
         Options options = tool.getOptions(OPTION_CATEGORY_NAME);
         refreshNamingPolicyFromOptions();
         refreshScriptPolicyFromOptions();
-        int port = options.getInt(PORT_OPTION_NAME, DEFAULT_PORT);
+        int port;
+        String envPort = System.getenv("GHIDRA_MCP_PORT");
+        if (envPort != null && !envPort.isEmpty()) {
+            int parsed = -1;
+            try { parsed = Integer.parseInt(envPort.trim()); } catch (NumberFormatException ignored) {}
+            if (parsed > 0) {
+                port = parsed;
+                Msg.info(this, "Using TCP port " + port + " from GHIDRA_MCP_PORT env var");
+            } else {
+                port = options.getInt(PORT_OPTION_NAME, DEFAULT_PORT);
+                Msg.warn(this, "Invalid GHIDRA_MCP_PORT value: " + envPort + ", using default " + port);
+            }
+        } else {
+            port = options.getInt(PORT_OPTION_NAME, DEFAULT_PORT);
+        }
 
         // Stop existing server if running (e.g., if plugin is reloaded)
         if (server != null) {

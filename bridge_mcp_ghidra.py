@@ -2298,7 +2298,19 @@ def main():
         "If omitted, the bridge auto-discovers a UDS socket and falls back "
         "to GHIDRA_MCP_URL (default http://127.0.0.1:8089).",
     )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="Shorthand for --ghidra-address tcp://127.0.0.1:<port>. "
+        "Also reads GHIDRA_MCP_PORT env var as fallback.",
+    )
     args = parser.parse_args()
+
+    if not args.ghidra_address:
+        port = args.port or os.getenv("GHIDRA_MCP_PORT")
+        if port:
+            args.ghidra_address = f"tcp://127.0.0.1:{port}"
 
     if args.ghidra_address:
         try:
