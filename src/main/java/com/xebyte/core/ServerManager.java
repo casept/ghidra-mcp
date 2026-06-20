@@ -72,10 +72,14 @@ public class ServerManager {
             MalwareSecurityService malwareSecurityService = new MalwareSecurityService(programProvider, ts);
             ProgramScriptService programScriptService = new ProgramScriptService(programProvider, ts);
 
+            ProjectVersionControlService projectVersionControlService =
+                new ProjectVersionControlService(tool);
+
             AnnotationScanner scanner = new AnnotationScanner(programProvider,
                 listingService, functionService, commentService, symbolLabelService,
                 xrefCallGraphService, dataTypeService, analysisService,
-                documentationHashService, malwareSecurityService, programScriptService);
+                documentationHashService, malwareSecurityService, programScriptService,
+                projectVersionControlService);
 
             startServer(scanner, guiEndpoints);
         }
