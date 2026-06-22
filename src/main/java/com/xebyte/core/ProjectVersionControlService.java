@@ -59,10 +59,43 @@ public class ProjectVersionControlService {
     }
 
     @McpTool(path = "/server/status",
-        description = "Project status: connection, shared flag, server info, file count.",
+        description = "Project status: connection, shared flag, server info, file count, verified connection health.",
         category = "server")
     public Response serverStatus() {
         return Response.text(getProjectStatusJson());
+    }
+
+    @McpTool(path = "/server/reconnect", method = "POST",
+        description = "Reconnect to the Ghidra Server after a connection drop (e.g. SSH tunnel restart). "
+            + "Equivalent to GUI: Repository > Connect to... Calls RepositoryAdapter.connect() which is "
+            + "thread-safe and works even while the disconnect error dialog is showing.",
+        category = "server")
+    public Response serverReconnect() {
+        Project project = tool.getProject();
+        if (project == null) {
+            return Response.text("{\"error\": \"No project open\"}");
+        }
+        RepositoryAdapter repo = getProjectRepository();
+        if (repo == null) {
+            return Response.text("{\"error\": \"Project is not shared (no repository)\"}");
+        }
+
+        boolean wasConnected = repo.isConnected();
+        if (wasConnected) {
+            try {
+                repo.verifyConnection();
+                return Response.text("{\"status\": \"already_connected\", \"repository\": \"" + esc(repo.getName()) + "\"}");
+            } catch (Exception e) {
+                // stale connection — fall through to reconnect
+            }
+        }
+
+        try {
+            repo.connect();
+            return Response.text("{\"status\": \"reconnected\", \"repository\": \"" + esc(repo.getName()) + "\"}");
+        } catch (Exception e) {
+            return Response.text("{\"error\": \"Reconnect failed: " + esc(e.getMessage()) + "\"}");
+        }
     }
 
     // ========================================================================
@@ -265,8 +298,12 @@ public class ProjectVersionControlService {
             try {
                 sb.append(", \"server_connected\": ").append(repo.isConnected());
                 sb.append(", \"server_info\": \"").append(esc(repo.getServerInfo().toString())).append("\"");
+                boolean verified = false;
+                try { verified = repo.verifyConnection(); } catch (Exception ignored) {}
+                sb.append(", \"server_verified\": ").append(verified);
             } catch (Exception e) {
                 sb.append(", \"server_connected\": false");
+                sb.append(", \"server_verified\": false");
             }
         }
         sb.append(", \"file_count\": ").append(data.getFileCount());

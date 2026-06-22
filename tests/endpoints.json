@@ -2356,6 +2356,13 @@
       "description": "Disconnect from the Ghidra server"
     },
     {
+      "path": "/server/reconnect",
+      "method": "POST",
+      "category": "server",
+      "params": [],
+      "description": "Reconnect to the Ghidra Server after a connection drop"
+    },
+    {
       "path": "/server/repositories",
       "method": "GET",
       "category": "server",

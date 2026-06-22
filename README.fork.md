@@ -96,7 +96,8 @@ connection for read and admin operations.
 |------|-------------|
 | `server_connect` | Connection status (GUI: project-based, no separate connect needed) |
 | `server_disconnect` | Disconnect (GUI: no-op) |
-| `server_status` | Project status, shared flag, server info, file count |
+| `server_status` | Project status, shared flag, server info, verified health |
+| `server_reconnect` | Reconnect after SSH tunnel drop (calls RepositoryAdapter.connect()) |
 | `server_repositories` | List all repos on the Ghidra Server |
 | `server_repository_files` | Browse project folder/file tree |
 | `server_repository_file` | File metadata (version, checkout status) |
