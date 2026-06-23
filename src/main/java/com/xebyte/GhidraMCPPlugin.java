@@ -519,7 +519,8 @@ public class GhidraMCPPlugin extends Plugin implements ApplicationLevelPlugin {
                         startServer();
                         ownsServer = true;
                         if (started.length() > 0) started.append("\n");
-                        started.append("TCP: port ").append(opts.getInt(PORT_OPTION_NAME, DEFAULT_PORT));
+                        int bp = ServerManager.getInstance().getBoundTcpPort();
+                        started.append("TCP: port ").append(bp > 0 ? bp : opts.getInt(PORT_OPTION_NAME, DEFAULT_PORT));
                     } catch (IOException e) {
                         Msg.showError(getClass(), null, "GhidraMCP", "Failed to start TCP server: " + e.getMessage());
                     }
@@ -559,7 +560,8 @@ public class GhidraMCPPlugin extends Plugin implements ApplicationLevelPlugin {
             @Override
             public void actionPerformed(ActionContext context) {
                 Options opts = tool.getOptions(OPTION_CATEGORY_NAME);
-                int port = opts.getInt(PORT_OPTION_NAME, DEFAULT_PORT);
+                int boundPort = ServerManager.getInstance().getBoundTcpPort();
+                int port = boundPort > 0 ? boundPort : opts.getInt(PORT_OPTION_NAME, DEFAULT_PORT);
                 boolean udsRunning = ServerManager.getInstance().isRunning();
                 String udsStatus = udsRunning
                     ? "Running (" + ServerManager.getInstance().getSocketPath() + ")"
